@@ -6,14 +6,14 @@
       <span :style="{color: $store.state.colorCode}">{{ getCounter }}</span>
     </p>
     <div class="buttons">
-      <button @click="$store.dispatch('decreaseCounter')">-</button>
-      <button @click="$store.dispatch('increaseCounter')">+</button>
+      <button id="decrease" @click="updateOtherClients">-</button>
+      <button id="increase" @click="updateOtherClients">+</button>
     </div>
   </div>
 </template>
 
 <script>
-// @ is an alias to /src
+
 
 export default {
   name: 'HomeView',
@@ -29,8 +29,59 @@ export default {
     }
   },
   mounted() {
+    // setup ws connection
+    let wsId = this.$uuid('small');
+    this.connection = new WebSocket(`ws://192.168.0.72:8000/ws/${wsId}`);
+    this.connection.onopen = () => console.log(`WS connection established (${wsId})`);
+    this.connection.onmessage = (event) => {
+      let json = JSON.parse(event.data)
+      // only act on update events
+      if (json.type == "database-update-event"){
+        this.processUpdate(event)
+      } else {
+        console.log("unknown event type: ", event)
+      }
+    }
+
+    // update data on first load
     this.$store.dispatch("fetchCounter");
-}
+  },
+  methods: {
+    /**
+     * trigger the data update -> backend will publish ws broadcast
+     * @param {*} event 
+     */
+    updateOtherClients(event) {
+      // detect action and trigger local update
+      if (event.target.id == "decrease") {
+        this.$store.dispatch('decreaseCounter')
+      } else if (event.target.id == "increase") {
+        this.$store.dispatch('increaseCounter')
+      }
+      // broadcast update to other connected clients
+      // this.sendUpdate() - not necessary anymore - server broadcasts update
+    },
+
+    /**
+     * Publish a ws json message
+     */
+    // sendUpdate() {
+    //   // push json with data
+    //   this.connection.send(JSON.stringify({
+    //     "counter": this.$store.state.counter
+    //   }));
+    // },
+
+    /**
+     * Handle ws update event
+     * @param {*} event 
+     */
+    processUpdate(event) {
+      // parse json of event and send commit to store
+      let data = JSON.parse(event.data);
+      this.$store.commit('setCounter', data.counter)
+    }
+  }
 }
 </script>
 
@@ -46,7 +97,8 @@ export default {
     width: 100px;
     margin: 0 10px;
   }
-  .greentextclass {
-    color: green
+  .magicColor {
+    color: purple;
+    font-size: 99px;
   }
 </style>

@@ -13,6 +13,7 @@ export default createStore({
   mutations: {
     setCounter(state, newNumber){
       state.counter = newNumber
+      this.dispatch('setColorCode', newNumber)
     },
     setColorCode(state, newValue){
       state.colorCode = newValue
